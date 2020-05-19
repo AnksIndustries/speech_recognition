@@ -2,6 +2,7 @@
 
 # NOTE: this example requires PyAudio because it uses the Microphone class
 
+import time
 from threading import Thread
 try:
     from queue import Queue  # Python 3 import
@@ -10,6 +11,8 @@ except ImportError:
 
 import speech_recognition as sr
 
+Sample_Rate = 48000
+Chunk_Size = 1024
 
 r = sr.Recognizer()
 audio_queue = Queue()
@@ -18,6 +21,7 @@ audio_queue = Queue()
 def recognize_worker():
     # this runs in a background thread
     while True:
+        
         audio = audio_queue.get()  # retrieve the next audio processing job from the main thread
         if audio is None: break  # stop processing if the main thread is done
 
@@ -34,15 +38,17 @@ def recognize_worker():
 
         audio_queue.task_done()  # mark the audio processing job as completed in the queue
 
-
 # start a new thread to recognize audio, while this thread focuses on listening
 recognize_thread = Thread(target=recognize_worker)
 recognize_thread.daemon = True
 recognize_thread.start()
-with sr.Microphone() as source:
+with sr.Microphone(sample_rate=Sample_Rate,chunk_size=Chunk_Size) as source:
+    r.adjust_for_ambient_noise(source)
     try:
         while True:  # repeatedly listen for phrases and put the resulting audio on the audio processing job queue
+            print("Listening...")
             audio_queue.put(r.listen(source))
+            
     except KeyboardInterrupt:  # allow Ctrl + C to shut down the program
         pass
 
